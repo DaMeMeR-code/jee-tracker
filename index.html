@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#111214"/>
+<title>JEE Advanced Tracker</title>
+<link rel="manifest" id="pwa-manifest"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#111214;--surface:#17191c;--card:#1d2025;--card2:#23272c;
+  --border:#2c3038;--border2:#383e47;--text:#d4d8de;--text2:#959ba5;--muted:#555c69;
+  --phy:#5b8dd9;--chem:#4aab72;--math:#c9924a;
+  --strong:#4aab72;--decent:#5b8dd9;--weak:#c05050;--done:#8a6fc7;
+  --radius:11px;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;height:100dvh;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;overflow:hidden;}
+
+/* SYNC SCREEN */
+#sync-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;padding-top:calc(32px + var(--st));padding-bottom:calc(32px + var(--sb));z-index:999;overflow-y:auto;}
+.s-logo{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:5px;color:var(--muted);text-transform:uppercase;margin-bottom:44px;}
+.s-title{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;margin-bottom:10px;text-align:center;}
+.s-sub{color:var(--text2);font-size:13px;text-align:center;line-height:1.65;margin-bottom:32px;max-width:300px;}
+.s-input{width:100%;max-width:320px;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'Space Mono',monospace;font-size:16px;padding:14px 18px;outline:none;text-align:center;letter-spacing:2px;margin-bottom:12px;transition:border-color .2s;}
+.s-input:focus{border-color:var(--text2);}
+.s-input::placeholder{color:var(--muted);letter-spacing:1px;font-size:13px;}
+.s-btn{width:100%;max-width:320px;background:var(--card2);border:1px solid var(--border2);color:var(--text);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:14px;cursor:pointer;margin-bottom:16px;transition:background .15s;}
+.s-btn:active{background:var(--border);}
+.s-skip{color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+.s-note{color:var(--muted);font-size:11px;text-align:center;margin-top:24px;line-height:1.65;max-width:280px;}
+
+/* APP SHELL */
+#app{display:none;width:100%;height:100%;height:100dvh;overflow:hidden;}
+#app.on{display:flex;flex-direction:column;}
+
+/* HEADER */
+.hdr{flex-shrink:0;padding:calc(12px + var(--st)) 16px 10px;padding-left:calc(16px + var(--sl));padding-right:calc(16px + var(--sr));border-bottom:1px solid var(--border);background:var(--bg);}
+.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.hdr-title{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;letter-spacing:2.5px;}
+.hdr-date{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;margin-top:2px;}
+.sync-sm{background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);padding:6px 11px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;letter-spacing:.5px;}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.sdot.on{background:var(--strong);}
+
+/* PROGRESS */
+.prog-wrap{display:flex;align-items:center;gap:10px;}
+.prog-lbl{font-size:10px;color:var(--muted);white-space:nowrap;}
+.prog-bg{flex:1;height:4px;background:var(--card2);border-radius:99px;overflow:hidden;}
+.prog-fill{height:100%;width:0%;background:var(--text2);border-radius:99px;transition:width .4s ease;}
+.prog-pct{font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);min-width:34px;text-align:right;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:7px 12px;padding-left:calc(12px + var(--sl));padding-right:calc(12px + var(--sr));flex-shrink:0;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:7px 5px;text-align:center;}
+.sc-lbl{font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.sc-val{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:var(--text2);}
+.sc-sub{font-size:9px;color:var(--muted);}
+.sc.phy .sc-val{color:var(--phy);}.sc.chem .sc-val{color:var(--chem);}.sc.math .sc-val{color:var(--math);}
+
+
+/* ── DUE DATE HELPERS ── */
+function dueCls(ds){if(!ds)return'';const d=new Date(ds),n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);const diff=(d-n)/864e5;if(diff<0)return'overdue';if(diff<=7)return'soon';return'ok';}
+function fmtDue(ds){if(!ds)return'';const d=new Date(ds),n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);const diff=Math.round((d-n)/864e5);const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const base=mo[d.getMonth()]+' '+d.getDate();if(diff===0)return base+' (today)';if(diff===1)return base+' (tomorrow)';if(diff===-1)return base+' (yesterday)';if(diff<0)return base+' ('+Math.abs(diff)+'d overdue)';if(diff<=7)return base+' ('+diff+'d left)';return base;}
+
+/* ── DUE DATE PICKER EVENTS ── */
+document.getElementById('p-due-input').addEventListener('change',function(){if(!picTgt)return;const k=picTgt.ci+'-'+picTgt.ti;if(this.value)DUES[k]=this.value;else delete DUES[k];save();refreshSub(picTgt.ci,picTgt.ti);if(subj==='cal')renderCal();});
+document.getElementById('p-due-clr').addEventListener('click',function(){if(!picTgt)return;const k=picTgt.ci+'-'+picTgt.ti;delete DUES[k];document.getElementById('p-due-input').value='';save();refreshSub(picTgt.ci,picTgt.ti);if(subj==='cal')renderCal();});
+
+/* ── REFRESH SUBTOPIC (updated with due badge) ── */
+function refreshSub(ci,ti){
+  const s=getTPS(ci,ti);const due=DUES[ci+'-'+ti]||'';
+  const st=document.querySelector('.sub[data-ci="'+ci+'"][data-ti="'+ti+'"]');
+  if(!st)return;
+  st.dataset.s=s;st.querySelector('.sub-btn').textContent=SI[s]||'';
+  const txtEl=st.querySelector('.sub-txt');
+  if(txtEl){const old=txtEl.querySelector('.sub-due');if(old)old.remove();if(due){const b=document.createElement('div');b.className='sub-due '+dueCls(due);b.textContent='\u{1F4C5} '+fmtDue(due);txtEl.appendChild(b);}}
+  const chEl=st.closest('.ch');
+  if(chEl){const ch=SYL[ci];const done=ch.t.filter((_,ti2)=>getTPS(ci,ti2)!=='').length;const bar=chEl.querySelector('.mini-fill');if(bar){bar.style.width=Math.round(done/ch.t.length*100)+'%';bar.classList.toggle('full',done===ch.t.length&&ch.t.length>0);}}
+  updateStats();
+}
+
+/* ── CALENDAR ── */
+const MO=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function allDuedTopics(){
+  // returns [{ci,ti,due,ch,topic,subj}] sorted by date
+  const items=[];
+  SYL.forEach((ch,ci)=>{ch.t.forEach((topic,ti)=>{const due=DUES[ci+'-'+ti];if(due)items.push({ci,ti,due,ch:ch.n,topic,subj:ch.s,status:getTPS(ci,ti)||''});});});
+  items.sort((a,b)=>a.due<b.due?-1:a.due>b.due?1:0);
+  return items;
+}
+
+function renderCal(){
+  const scroll=document.getElementById('cal-scroll');
+  const title=document.getElementById('cal-title');
+  const today=new Date();today.setHours(0,0,0,0);
+
+  if(calMode==='month'){
+    const ref=new Date(today.getFullYear(),today.getMonth()+calOffset,1);
+    title.textContent=MO[ref.getMonth()].toUpperCase()+' '+ref.getFullYear();
+    // build month grid
+    const firstDay=ref.getDay();
+    const daysInMonth=new Date(ref.getFullYear(),ref.getMonth()+1,0).getDate();
+    const allDue=allDuedTopics();
+
+    let html='<div class="cal-month-grid"><div class="cal-dow-row">';
+    DOW.forEach(d=>html+='<div class="cal-dow">'+d+'</div>');
+    html+='</div>';
+
+    // pad start
+    const totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
+    let cells=[];
+    for(let i=0;i<firstDay;i++)cells.push({day:null});
+    for(let d=1;d<=daysInMonth;d++)cells.push({day:d});
+    while(cells.length<totalCells)cells.push({day:null});
+
+    for(let w=0;w<cells.length/7;w++){
+      html+='<div class="cal-week">';
+      for(let d=0;d<7;d++){
+        const cell=cells[w*7+d];
+        if(!cell.day){html+='<div class="cal-day other-month"><div class="cal-day-num"></div></div>';continue;}
+        const dateStr=ref.getFullYear()+'-'+String(ref.getMonth()+1).padStart(2,'0')+'-'+String(cell.day).padStart(2,'0');
+        const cellDate=new Date(dateStr);cellDate.setHours(0,0,0,0);
+        const isToday=cellDate.getTime()===today.getTime();
+        const items=allDue.filter(x=>x.due===dateStr);
+        html+='<div class="cal-day'+(isToday?' today':'')+'">'
+          +'<div class="cal-day-num">'+cell.day+'</div>'
+          +items.slice(0,3).map(x=>'<div class="cal-chip '+x.subj+'">'+x.topic.slice(0,18)+'</div>').join('')
+          +(items.length>3?'<div class="cal-chip" style="color:var(--muted)">+'+( items.length-3)+' more</div>':'')
+          +'</div>';
+      }
+      html+='</div>';
+    }
+    html+='</div>';
+    scroll.innerHTML=html;
+
+  } else {
+    // WEEK or DAY list view
+    let start=new Date(today);
+    start.setDate(today.getDate()+(calMode==='week'?calOffset*7:calOffset));
+    const days=calMode==='week'?7:1;
+    title.textContent=calMode==='week'?'WEEK OF '+DOW[start.getDay()]+', '+MO[start.getMonth()].slice(0,3)+' '+start.getDate()+(calOffset===0?' (THIS WEEK)':'')
+                                       :DOW[start.getDay()].toUpperCase()+', '+MO[start.getMonth()].slice(0,3)+' '+start.getDate()+', '+start.getFullYear()+(calOffset===0?' — TODAY':'');
+
+    const allDue=allDuedTopics();
+    let html='';
+    for(let i=0;i<days;i++){
+      const day=new Date(start);day.setDate(start.getDate()+i);day.setHours(0,0,0,0);
+      const ds=day.getFullYear()+'-'+String(day.getMonth()+1).padStart(2,'0')+'-'+String(day.getDate()).padStart(2,'0');
+      const items=allDue.filter(x=>x.due===ds);
+      const isT=day.getTime()===today.getTime();
+      html+='<div class="cal-list-day"><div class="cal-list-date'+(isT?' today-hdr':'')+'">'+DOW[day.getDay()]+', '+MO[day.getMonth()].slice(0,3)+' '+day.getDate()+(isT?' — TODAY':'')+'</div>';
+      if(items.length===0)html+='<div style="font-size:12px;color:var(--muted);padding:8px 0;">No topics due</div>';
+      else items.forEach(x=>{
+        const ck=isChk(x.ci)?' (chapter done)':'';
+        html+='<div class="cal-item"><div class="cal-item-dot" style="background:var(--'+x.subj+')"></div><div class="cal-item-body"><div class="cal-item-ch">'+x.ch+'</div><div class="cal-item-topic">'+x.topic+'</div><div class="cal-item-status">'+( x.status?SI[x.status]+' '+x.status:'Untouched')+ck+'</div></div></div>';
+      });
+      html+='</div>';
+    }
+    if(!html.includes('cal-item'))html='<div class="cal-empty">No due dates set yet.<br/>Open any subtopic and assign a due date.</div>';
+    scroll.innerHTML=html;
+  }
+}
+
+/* Cal nav */
+document.getElementById('cal-prev').addEventListener('click',()=>{calOffset--;renderCal();});
+document.getElementById('cal-next').addEventListener('click',()=>{calOffset++;renderCal();});
+document.querySelectorAll('.cal-mode-btn').forEach(btn=>{btn.addEventListener('click',()=>{calMode=btn.dataset.mode;calOffset=0;document.querySelectorAll('.cal-mode-btn').forEach(b=>b.classList.toggle('active',b===btn));renderCal();});});
+
+/* TABS */
+.tabs{display:flex;gap:4px;padding:6px 12px;padding-left:calc(12px + var(--sl));padding-right:calc(12px + var(--sr));border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:5px 13px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:.5px;transition:all .15s;}
+.tab.active{color:var(--text);border-color:var(--border2);background:var(--card);}
+.tc{font-size:9px;margin-left:4px;opacity:.55;}
+
+/* FILTERS */
+.filters{display:flex;gap:5px;padding:6px 12px;padding-left:calc(12px + var(--sl));padding-right:calc(12px + var(--sr));border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;align-items:center;}
+.filters::-webkit-scrollbar{display:none;}
+.fc{flex-shrink:0;padding:4px 11px;border-radius:99px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);transition:all .15s;white-space:nowrap;}
+.fc.active{background:var(--card2);color:var(--text);border-color:var(--border2);}
+.fsep{width:1px;height:14px;background:var(--border);flex-shrink:0;margin:0 1px;}
+
+/* LEGEND */
+.legend{display:flex;gap:12px;padding:5px 14px 0;padding-left:calc(14px + var(--sl));flex-wrap:wrap;flex-shrink:0;}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);}
+.ld{width:7px;height:7px;border-radius:50%;}
+
+/* SCROLLER */
+.scroller{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 10px 12px;padding-left:calc(10px + var(--sl));padding-right:calc(10px + var(--sr));padding-bottom:calc(12px + var(--sb));-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.scroller::-webkit-scrollbar{width:3px;}
+.scroller::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+/* CHAPTER CARD */
+.ch{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:7px;overflow:hidden;}
+.ch.done-ch{opacity:.7;}
+.ch.done-ch .ch-name{text-decoration:line-through;color:var(--muted);}
+.ch-hdr{display:flex;align-items:center;padding:11px 13px;gap:10px;cursor:pointer;user-select:none;-webkit-user-select:none;}
+.ch-box{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border2);background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:all .15s;color:transparent;font-weight:700;}
+.ch-box:active{transform:scale(.88);}
+.ch[data-ck="1"] .ch-box{background:var(--card2);border-color:var(--text2);color:var(--text2);}
+.ch-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.ch-name{flex:1;font-size:13px;font-weight:600;line-height:1.3;}
+.ch-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.ch-wt{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;}
+.mini-bar{width:36px;height:3px;background:var(--border);border-radius:99px;overflow:hidden;}
+.mini-fill{height:100%;border-radius:99px;background:var(--border2);transition:width .3s;}
+.mini-fill.full{background:var(--strong);}
+.ch-chev{color:var(--muted);font-size:9px;transition:transform .2s;flex-shrink:0;}
+.ch.open .ch-chev{transform:rotate(180deg);}
+.sub-list{display:none;border-top:1px solid var(--border);}
+.ch.open .sub-list{display:block;}
+.sub-items{padding:2px 0 6px;}
+.sub{display:flex;align-items:flex-start;padding:7px 13px;gap:10px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--surface);}
+.sub:last-child{border-bottom:none;}
+.sub:active{background:var(--card2);}
+.sub-btn{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s;margin-top:1px;}
+.sub-txt{flex:1;font-size:12px;color:var(--text2);line-height:1.5;}
+.sub[data-s="strong"] .sub-btn{background:var(--strong);border-color:var(--strong);color:#fff;}
+.sub[data-s="decent"] .sub-btn{background:var(--decent);border-color:var(--decent);color:#fff;}
+.sub[data-s="weak"]   .sub-btn{background:var(--weak);border-color:var(--weak);color:#fff;}
+.sub[data-s="done"]   .sub-btn{background:var(--done);border-color:var(--done);color:#fff;}
+.sub[data-s="strong"] .sub-txt,.sub[data-s="decent"] .sub-txt,.sub[data-s="weak"] .sub-txt,.sub[data-s="done"] .sub-txt{color:var(--text);}
+
+/* PICKER */
+.picker-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.picker-ov.on{display:flex;}
+.picker-sheet{background:var(--card);border:1px solid var(--border2);border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:14px 16px calc(14px + var(--sb));animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.p-handle{width:34px;height:3px;background:var(--border2);border-radius:99px;margin:0 auto 14px;}
+.p-name{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5;padding:0 2px;}
+.p-opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px;}
+.p-opt{padding:11px 10px;border-radius:9px;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;transition:all .12s;background:var(--surface);}
+.p-opt:active{transform:scale(.97);}
+.p-dot{width:9px;height:9px;border-radius:50%;}
+.p-opt.strong{border-color:var(--strong);color:var(--strong);}
+.p-opt.decent{border-color:var(--decent);color:var(--decent);}
+.p-opt.weak{border-color:var(--weak);color:var(--weak);}
+.p-opt.done{border-color:var(--done);color:var(--done);}
+.p-opt.clr{border-color:var(--border);color:var(--muted);grid-column:1/-1;justify-content:center;}
+
+/* SYNC BAR */
+.sync-bar{flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:5px;padding:3px;font-size:10px;color:transparent;min-height:18px;}
+.sync-bar.saving{color:var(--math);}.sync-bar.saved{color:var(--strong);}.sync-bar.err{color:var(--weak);}
+
+/* INSTALL */
+.inst-bar{display:none;flex-shrink:0;background:var(--card);border-top:1px solid var(--border);padding:9px 14px calc(9px + var(--sb));padding-left:calc(14px + var(--sl));padding-right:calc(14px + var(--sr));flex-direction:row;align-items:center;gap:10px;}
+.inst-bar.on{display:flex;}
+.inst-txt{flex:1;font-size:12px;color:var(--text2);}
+.inst-btn{background:var(--card2);color:var(--text);border:1px solid var(--border2);border-radius:8px;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;}
+.inst-x{color:var(--muted);cursor:pointer;font-size:16px;padding:4px;}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+
+/* LANDSCAPE */
+@media (orientation:landscape){
+  #app.on{flex-direction:row;}
+
+  .ls-side{display:flex!important;flex-direction:column;flex-shrink:0;width:148px;border-right:1px solid var(--border);padding-left:var(--sl);overflow:hidden;}
+  .ls-side-hdr{padding:calc(8px + var(--st)) 10px 8px;border-bottom:1px solid var(--border);}
+  .ls-side-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;}
+  .ls-side-date{font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;}
+  .ls-tabs{display:flex;flex-direction:column;gap:3px;padding:7px 8px;border-bottom:1px solid var(--border);overflow-y:auto;flex-shrink:0;scrollbar-width:none;}
+  .ls-tabs::-webkit-scrollbar{display:none;}
+  .ls-tabs .tab{width:100%;text-align:left;padding:6px 9px;font-size:10px;}
+  .ls-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 8px;flex-shrink:0;}
+  .ls-stats .sc{padding:5px 4px;}
+  .ls-stats .sc-val{font-size:12px;}
+  .ls-stats .sc-sub{display:none;}
+  .ls-sync{margin:6px 8px;font-size:10px;padding:5px 8px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);display:flex;align-items:center;gap:5px;cursor:pointer;font-family:'Space Mono',monospace;flex-shrink:0;}
+
+  .ls-main{display:flex!important;flex-direction:column;flex:1;overflow:hidden;padding-right:var(--sr);}
+  .ls-prog{flex-shrink:0;display:flex!important;padding:calc(8px + var(--st)) 14px 7px;border-bottom:1px solid var(--border);background:var(--bg);}
+  .ls-prog .prog-wrap{flex:1;}
+  .ls-main .filters{padding-top:5px;padding-bottom:5px;}
+  .ls-main .scroller{padding-bottom:calc(8px + var(--sb));}
+
+  .p-only{display:none!important;}
+}
+@media (orientation:portrait){
+  .ls-side{display:none!important;}
+  .ls-main{display:contents!important;}
+  .ls-prog{display:none!important;}
+  .l-only{display:none!important;}
+}
+
+/* ── DUE DATE BADGE on subtopic ── */
+.sub-due{font-size:10px;color:var(--muted);margin-top:2px;font-family:'Space Mono',monospace;letter-spacing:.3px;white-space:nowrap;}
+.sub-due.overdue{color:var(--weak);}
+.sub-due.soon{color:var(--math);}
+.sub-due.ok{color:var(--strong);}
+
+/* ── DATE PICKER add-on row ── */
+.p-due-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.p-due-lbl{font-size:11px;color:var(--muted);white-space:nowrap;}
+.p-due-input{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:7px 10px;outline:none;min-width:0;}
+.p-due-input:focus{border-color:var(--text2);}
+.p-due-clr{background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-size:11px;padding:7px 10px;cursor:pointer;white-space:nowrap;}
+.p-due-clr:active{background:var(--card2);}
+
+/* ── CALENDAR VIEW ── */
+#cal-view{display:none;flex:1;overflow:hidden;flex-direction:column;min-height:0;}
+#cal-view.on{display:flex;}
+.cal-nav{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:8px 14px;padding-right:calc(14px + var(--sr));border-bottom:1px solid var(--border);background:var(--bg);gap:8px;flex-wrap:wrap;}
+.cal-nav-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.5px;flex:1;text-align:center;}
+.cal-nav-btns{display:flex;gap:6px;align-items:center;}
+.cal-mode-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-size:11px;padding:5px 10px;cursor:pointer;font-family:'Space Mono',monospace;transition:all .15s;}
+.cal-mode-btn.active{background:var(--card2);color:var(--text);border-color:var(--border2);}
+.cal-arrow{background:none;border:1px solid var(--border);border-radius:7px;color:var(--text2);font-size:14px;padding:4px 10px;cursor:pointer;}
+.cal-scroll{flex:1;overflow-y:auto;padding:10px 12px;padding-right:calc(12px + var(--sr));scrollbar-width:thin;scrollbar-color:var(--border) transparent;min-height:0;}
+.cal-scroll::-webkit-scrollbar{width:3px;}
+.cal-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+/* MONTHLY grid */
+.cal-month-grid{display:flex;flex-direction:column;gap:0;}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;}
+.cal-dow{text-align:center;font-size:9px;font-family:'Space Mono',monospace;color:var(--muted);padding:4px 0;letter-spacing:.5px;}
+.cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;}
+.cal-day{min-height:52px;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:4px 5px;cursor:pointer;transition:border-color .15s;}
+.cal-day:active{border-color:var(--border2);}
+.cal-day.today{border-color:var(--text2);}
+.cal-day.other-month{opacity:.35;}
+.cal-day-num{font-size:10px;font-family:'Space Mono',monospace;color:var(--text2);margin-bottom:2px;}
+.cal-day.today .cal-day-num{color:var(--text);font-weight:700;}
+.cal-chip{font-size:8px;padding:1px 4px;border-radius:3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+.cal-chip.phy{background:rgba(91,141,217,.25);color:var(--phy);}
+.cal-chip.chem{background:rgba(74,171,114,.25);color:var(--chem);}
+.cal-chip.math{background:rgba(201,146,74,.25);color:var(--math);}
+
+/* WEEKLY / DAILY list */
+.cal-list-day{margin-bottom:14px;}
+.cal-list-date{font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);padding:6px 0 6px;letter-spacing:.5px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.cal-list-date.today-hdr{color:var(--text);font-weight:700;}
+.cal-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:9px;margin-bottom:5px;}
+.cal-item-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.cal-item-body{flex:1;min-width:0;}
+.cal-item-ch{font-size:11px;color:var(--muted);margin-bottom:1px;}
+.cal-item-topic{font-size:12px;color:var(--text);line-height:1.4;}
+.cal-item-status{font-size:10px;color:var(--muted);margin-top:2px;}
+.cal-empty{text-align:center;padding:32px;color:var(--muted);font-size:13px;}
+
+/* CAL tab */
+.tab.cal-tab{border-color:var(--border);}
+
+
+/* ── LANDSCAPE calendar fixes ── */
+@media (orientation:landscape){
+  #cal-view.on { display:flex; flex:1; min-height:0; }
+  #cal-view .cal-nav { padding-left:12px; }
+  #cal-view .cal-scroll { padding-bottom:calc(8px + var(--sb)); }
+  /* monthly grid: smaller day cells in landscape phone */
+  .cal-day { min-height:44px; }
+}
+/* portrait calendar */
+@media (orientation:portrait){
+  #cal-view.on { display:flex; }
+}
+</style>
+</head>
+<body>
+
+<div id="sync-screen">
+  <div class="s-logo">JEE Advanced Tracker</div>
+  <div class="s-title">Sync Your Tracker</div>
+  <div class="s-sub">Enter a sync code to keep your progress identical across your phone and tablet. Use the same code on both devices.</div>
+  <input class="s-input" id="si" type="text" placeholder="Enter your sync code&hellip;" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+  <button class="s-btn" id="sc-btn">Connect &amp; Start &rarr;</button>
+  <span class="s-skip" id="s-skip">Use offline (no sync)</span>
+  <div class="s-note">This is just a private key &mdash; pick anything memorable.<br/>Anyone with the same code shares your data.</div>
+</div>
+
+<div id="app">
+  <!-- LANDSCAPE SIDEBAR -->
+  <div class="ls-side">
+    <div class="ls-side-hdr">
+      <div class="ls-side-title">JEE ADV.</div>
+      <div class="ls-side-date">MAY 17 &middot; 2026</div>
+    </div>
+    <div class="ls-tabs" id="tabs-ls">
+      <button class="tab active" data-subj="all">ALL <span class="tc" id="tc-ls-all"></span></button>
+      <button class="tab" data-subj="phy">PHY <span class="tc" id="tc-ls-phy"></span></button>
+      <button class="tab" data-subj="chem">CHEM <span class="tc" id="tc-ls-chem"></span></button>
+      <button class="tab" data-subj="math">MATH <span class="tc" id="tc-ls-math"></span></button>
+      <button class="tab cal-tab" data-subj="cal">&#128197; CAL</button>
+    </div>
+    <div class="ls-stats">
+      <div class="sc all"><div class="sc-lbl">ALL</div><div class="sc-val" id="ss-all">0</div></div>
+      <div class="sc phy"><div class="sc-lbl">PHY</div><div class="sc-val" id="ss-phy">0</div></div>
+      <div class="sc chem"><div class="sc-lbl">CHEM</div><div class="sc-val" id="ss-chem">0</div></div>
+      <div class="sc math"><div class="sc-lbl">MATH</div><div class="sc-val" id="ss-math">0</div></div>
+    </div>
+    <button class="ls-sync" id="sb-sync-btn"><span class="sdot" id="sd-ls"></span><span id="sl-ls">SYNC</span></button>
+  </div>
+
+  <!-- LANDSCAPE PROGRESS (right pane top) -->
+  <div class="ls-prog l-only">
+    <div class="prog-wrap">
+      <span class="prog-lbl" id="pl-ls">0/49 chapters</span>
+      <div class="prog-bg"><div class="prog-fill" id="pf-ls"></div></div>
+      <span class="prog-pct" id="pp-ls">0%</span>
+    </div>
+  </div>
+
+  <!-- MAIN COLUMN -->
+  <div class="ls-main">
+
+    <!-- PORTRAIT HEADER -->
+    <div class="hdr p-only">
+      <div class="hdr-row1">
+        <div><div class="hdr-title">JEE ADVANCED</div><div class="hdr-date">MAY 17 &middot; 2026</div></div>
+        <button class="sync-sm" id="p-sync-btn"><span class="sdot" id="sd-p"></span><span id="sl-p">SYNC</span></button>
+      </div>
+      <div class="prog-wrap">
+        <span class="prog-lbl" id="pl-p">0/49 chapters</span>
+        <div class="prog-bg"><div class="prog-fill" id="pf-p"></div></div>
+        <span class="prog-pct" id="pp-p">0%</span>
+      </div>
+    </div>
+
+    <!-- PORTRAIT STATS -->
+    <div class="stats p-only">
+      <div class="sc all"><div class="sc-lbl">ALL</div><div class="sc-val" id="ps-all">0</div><div class="sc-sub" id="ps-all-s">0 done</div></div>
+      <div class="sc phy"><div class="sc-lbl">PHY</div><div class="sc-val" id="ps-phy">0</div><div class="sc-sub" id="ps-phy-s">0 done</div></div>
+      <div class="sc chem"><div class="sc-lbl">CHEM</div><div class="sc-val" id="ps-chem">0</div><div class="sc-sub" id="ps-chem-s">0 done</div></div>
+      <div class="sc math"><div class="sc-lbl">MATH</div><div class="sc-val" id="ps-math">0</div><div class="sc-sub" id="ps-math-s">0 done</div></div>
+    </div>
+
+    <!-- PORTRAIT TABS -->
+    <div class="tabs p-only" id="tabs-p">
+      <button class="tab active" data-subj="all">ALL</button>
+      <button class="tab" data-subj="phy">PHY <span class="tc" id="tc-p-phy"></span></button>
+      <button class="tab" data-subj="chem">CHEM <span class="tc" id="tc-p-chem"></span></button>
+      <button class="tab" data-subj="math">MATH <span class="tc" id="tc-p-math"></span></button>
+      <button class="tab cal-tab" data-subj="cal">&#128197; CAL</button>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filters" id="filters">
+      <button class="fc active" data-f="all">All</button>
+      <div class="fsep"></div>
+      <button class="fc" data-f="unchecked">&#9899; Unchecked</button>
+      <button class="fc" data-f="checked">&#10003; Checked</button>
+      <div class="fsep"></div>
+      <button class="fc" data-f="untouched">Untouched</button>
+      <button class="fc" data-f="weak">&#128308; Weak</button>
+      <button class="fc" data-f="decent">&#128309; Decent</button>
+      <button class="fc" data-f="strong">&#9989; Strong</button>
+      <button class="fc" data-f="done">&#9745; Done</button>
+    </div>
+
+    <!-- LEGEND -->
+    <div class="legend p-only">
+      <div class="li"><div class="ld" style="background:var(--strong)"></div>Strong</div>
+      <div class="li"><div class="ld" style="background:var(--decent)"></div>Decent</div>
+      <div class="li"><div class="ld" style="background:var(--weak)"></div>Weak</div>
+      <div class="li"><div class="ld" style="background:var(--done)"></div>Done</div>
+      <div class="li"><div class="ld" style="background:var(--border)"></div>Untouched</div>
+    </div>
+
+
+<!-- CALENDAR VIEW -->
+<div id="cal-view">
+  <div class="cal-nav">
+    <button class="cal-arrow" id="cal-prev">&#8249;</button>
+    <div class="cal-nav-title" id="cal-title">APRIL 2026</div>
+    <button class="cal-arrow" id="cal-next">&#8250;</button>
+    <div class="cal-nav-btns">
+      <button class="cal-mode-btn active" data-mode="month">Month</button>
+      <button class="cal-mode-btn" data-mode="week">Week</button>
+      <button class="cal-mode-btn" data-mode="day">Day</button>
+    </div>
+  </div>
+  <div class="cal-scroll" id="cal-scroll"></div>
+</div>
+    <div class="scroller" id="scroller"></div>
+    <div class="sync-bar" id="sync-bar"></div>
+    <div class="inst-bar" id="inst-bar">
+      <div class="inst-txt">&#128242; Install as app for offline access</div>
+      <button class="inst-btn" id="inst-btn">Install</button>
+      <span class="inst-x" id="inst-x">&#10005;</span>
+    </div>
+  </div>
+</div>
+
+
+<div class="picker-ov" id="picker-ov">
+  <div class="picker-sheet">
+    <div class="p-handle"></div>
+    <div class="p-name" id="p-name">Topic</div>
+    <div class="p-opts">
+      <div class="p-opt strong" data-pick="strong"><div class="p-dot" style="background:var(--strong)"></div>&#9989; Strong</div>
+      <div class="p-opt decent" data-pick="decent"><div class="p-dot" style="background:var(--decent)"></div>&#128309; Decent</div>
+      <div class="p-opt weak"   data-pick="weak">  <div class="p-dot" style="background:var(--weak)"></div>&#128308; Weak</div>
+      <div class="p-opt done"   data-pick="done">  <div class="p-dot" style="background:var(--done)"></div>&#9745; Done</div>
+      <div class="p-opt clr"    data-pick="">&#9899; Clear / Untouched</div>
+    </div>
+    <div class="p-due-row">
+      <span class="p-due-lbl">&#128197; Due date</span>
+      <input class="p-due-input" type="date" id="p-due-input"/>
+      <button class="p-due-clr" id="p-due-clr">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SYL=[
+{s:'phy',n:'General',w:'7-8%',t:['Units and dimensions, dimensional analysis; least count, significant figures','Methods of measurement and error analysis for physical quantities','Experiments using Vernier calipers and screw gauge (micrometer)','Determination of g using simple pendulum','Young\'s modulus \u2014 elasticity of the material; Surface tension of water by capillary rise and effect of detergents','Specific heat of a liquid using calorimeter; focal length of a concave mirror and a convex lens using u-v method','Speed of sound using resonance column','Verification of Ohm\'s law using voltmeter and ammeter; specific resistance using meter bridge and post office box']},
+{s:'phy',n:'Mechanics',w:'25-30%',t:['Kinematics in one and two dimensions (Cartesian coordinates only), projectiles; Uniform circular motion; Relative velocity','Newton\'s laws of motion; Inertial and uniformly accelerated frames of reference','Static and dynamic friction; Kinetic and potential energy; Work and power','Conservation of linear momentum and mechanical energy','Systems of particles; Centre of mass and its motion; Impulse','Elastic and inelastic collisions','Rigid body, moment of inertia; parallel and perpendicular axes theorems','Moment of inertia of uniform bodies with simple geometrical shapes','Angular momentum; Torque; Conservation of angular momentum','Dynamics of rigid bodies with fixed axis of rotation','Rolling without slipping of rings, cylinders and spheres','Equilibrium of rigid bodies; Collision of point masses with rigid bodies','Forced and damped oscillation (in one dimension), resonance','Linear and angular simple harmonic motions','Hooke\'s law, Young\'s modulus','Law of gravitation; Gravitational potential and field; Acceleration due to gravity','Kepler\'s law, Geostationary orbits; Motion of planets and satellites in circular orbits; Escape velocity','Pressure in a fluid; Pascal\'s law; Buoyancy','Surface energy and surface tension, angle of contact, drops, bubbles and capillary rise','Viscosity (Poiseuille\'s equation excluded), Modulus of rigidity and bulk modulus in mechanics','Stoke\'s law; Terminal velocity, Streamline flow, equation of continuity','Bernoulli\'s theorem and its applications','Wave motion (plane waves only), longitudinal and transverse waves, superposition of waves','Progressive and stationary waves; Vibration of strings and air columns; Resonance; Beats','Speed of sound in gases; Doppler effect (in sound)']},
+{s:'phy',n:'Thermal Physics',w:'10-12%',t:['Thermal expansion of solids, liquids and gases','Calorimetry, latent heat','Heat conduction in one dimension','Elementary concepts of convection and radiation','Newton\'s law of cooling','Ideal gas laws; Specific heats (Cv and Cp for monoatomic and diatomic gases)','Isothermal and adiabatic processes, bulk modulus of gases','Equivalence of heat and work; First law of thermodynamics and its applications (only for ideal gases)','Second law of thermodynamics; reversible and irreversible processes','Carnot engine and its efficiency','Blackbody radiation: absorptive and emissive powers','Kirchhoff\'s law; Wien\'s displacement law, Stefan\'s law']},
+{s:'phy',n:'Electricity and Magnetism',w:'22-25%',t:['Coulomb\'s law; Electric field and potential','Electrical potential energy of a system of point charges and of electrical dipoles in a uniform electrostatic field','Electric field lines; Flux of electric field','Gauss\'s law and its application: field due to infinitely long straight wire, uniformly charged infinite plane sheet and uniformly charged thin spherical shell','Capacitance; Parallel plate capacitor with and without dielectrics; Capacitors in series and parallel; Energy stored in a capacitor','Electric current; Ohm\'s law; Series and parallel arrangements of resistances and cells','Kirchhoff\'s laws and simple applications; Heating effect of current','Biot\u2013Savart\'s law and Ampere\'s law','Magnetic field near a current-carrying straight wire, along the axis of a circular coil and inside a long straight solenoid','Force on a moving charge and on a current-carrying wire in a uniform magnetic field','Magnetic moment of a current loop; Effect of a uniform magnetic field on a current loop','Moving coil galvanometer, voltmeter, ammeter and their conversions','Electromagnetic induction: Faraday\'s law, Lenz\'s law; Self and mutual inductance','RC, LR, LC and LCR (in series) circuits with d.c. and a.c. sources']},
+{s:'phy',n:'Optics',w:'12-15%',t:['Rectilinear propagation of light; Reflection and refraction at plane and spherical surfaces','Total internal reflection','Deviation and dispersion of light by a prism','Thin lenses; Combinations of mirrors and thin lenses; Magnification','Wave nature of light: Huygen\'s principle','Interference \u2014 limited to Young\'s double slit experiment','Diffraction due to a single slit','Polarization of light, plane polarized light; Brewster\'s law, Polaroids']},
+{s:'phy',n:'Modern Physics',w:'6-8%',t:['Atomic nucleus; \u03b1, \u03b2 and \u03b3 radiations','Law of radioactive decay; Decay constant; Half-life and mean life','Binding energy and its calculation; Fission and fusion processes; Energy calculation in these processes','Photoelectric effect','Bohr\'s theory of hydrogen-like atoms','Characteristic and continuous X-rays, Moseley\'s law','de Broglie wavelength of matter waves']},
+{s:'chem',n:'General Topics',w:'',t:['Concept of atoms and molecules; Dalton\'s atomic theory; Mole concept; Chemical formulae; Balanced chemical equations','Calculations (based on mole concept and stoichiometry) involving common oxidation-reduction, neutralisation, and displacement reactions','Concentration in terms of mole fraction, molarity, molality and normality']},
+{s:'chem',n:'States of Matter: Gases and Liquids',w:'5%',t:['Gas laws and ideal gas equation, absolute scale of temperature; Deviation from ideality, van der Waals equation','Kinetic theory of gases, average, root mean square and most probable velocities and their relation with temperature','Law of partial pressures, Diffusion of gases','Intermolecular interactions: types, distance dependence, and their effect on properties','Liquids: vapour pressure, surface tension, viscosity']},
+{s:'chem',n:'Atomic Structure',w:'7%',t:['Bohr model, spectrum of hydrogen atom','Wave-particle duality, de Broglie hypothesis; Uncertainty principle','Qualitative quantum mechanical picture of hydrogen atom: Energies, quantum numbers, wave function and probability density (plots only)','Shapes of s, p and d orbitals','Aufbau principle; Pauli\'s exclusion principle and Hund\'s rule']},
+{s:'chem',n:'Chemical Bonding and Molecular Structure',w:'8%',t:['Orbital overlap and covalent bond; Hybridisation involving s, p and d orbitals only','Molecular orbital energy diagrams for homonuclear diatomic species (up to Ne\u2082)','Hydrogen bond; Polarity in molecules, dipole moment','VSEPR model and shapes of molecules (linear, angular, triangular, square planar, pyramidal, square pyramidal, trigonal bipyramidal, tetrahedral and octahedral)']},
+{s:'chem',n:'Chemical Thermodynamics',w:'7%',t:['Intensive and extensive properties, state functions, First law of thermodynamics','Internal energy, work (pressure-volume only) and heat; Enthalpy, heat capacity, standard state, Hess\'s law','Enthalpy of reaction, fusion and vapourization, and lattice enthalpy','Second law of thermodynamics; Entropy; Gibbs energy','Criteria of equilibrium and spontaneity']},
+{s:'chem',n:'Chemical and Ionic Equilibrium',w:'6%',t:['Law of mass action; Significance of \u0394G and \u0394G\u29ee in chemical equilibrium','Equilibrium constant (Kp and Kc) and reaction quotient','Le Chatelier\'s principle (effect of concentration, temperature and pressure)','Solubility product and its applications, common ion effect','pH and buffer solutions','Acids and bases (Bronsted and Lewis concepts)','Hydrolysis of salts']},
+{s:'chem',n:'Electrochemistry',w:'6%',t:['Electrochemical cells and cell reactions; Standard electrode potentials','Electrochemical work, Nernst equation','Electrochemical series, emf of galvanic cells','Faraday\'s laws of electrolysis','Electrolytic conductance, specific, equivalent and molar conductivity, Kohlrausch\'s law','Batteries: Primary and Secondary, fuel cells; Corrosion']},
+{s:'chem',n:'Surface Chemistry',w:'3%',t:['Elementary concepts of adsorption: Physisorption and Chemisorption, Freundlich adsorption isotherm','Colloids: types, methods of preparation and general properties','Elementary ideas of emulsions, surfactants and micelles (only definitions and examples)']},
+{s:'chem',n:'Classification of Elements and Periodicity in Properties',w:'4%',t:['Modern periodic law and the present form of periodic table; electronic configuration of elements','Periodic trends in atomic radius, ionic radius, ionization enthalpy, electron gain enthalpy, valence, oxidation states, electronegativity, and chemical reactivity']},
+{s:'chem',n:'Hydrogen',w:'2%',t:['Position of hydrogen in periodic table, occurrence, isotopes, preparation, properties and uses of hydrogen','Hydrides \u2014 ionic, covalent and interstitial','Physical and chemical properties of water, heavy water','Hydrogen peroxide \u2014 preparation, reactions, use and structure','Hydrogen as a fuel']},
+{s:'chem',n:'S-Block Elements',w:'5%',t:['Alkali and alkaline earth metals \u2014 reactivity towards air, water, dihydrogen, halogens, acids','Reducing nature including solutions in liquid ammonia; uses of these elements','General characteristics of their oxides, hydroxides, halides, salts of oxoacids','Anomalous behaviour of lithium and beryllium','Preparation, properties, and uses of compounds of sodium: sodium carbonate, sodium chloride, sodium hydroxide, sodium hydrogen carbonate','Preparation, properties, and uses of compounds of calcium: calcium oxide, calcium hydroxide, calcium carbonate, calcium sulphate']},
+{s:'chem',n:'P-Block Elements',w:'10%',t:['Oxidation state and trends in chemical reactivity of elements of groups 13-17; anomalous properties of boron, carbon, nitrogen, oxygen, and fluorine','Group 13: Reactivity towards acids, alkalis, and halogens; preparation, properties, and uses of borax, orthoboric acid, diborane, boron trifluoride, aluminium chloride, and alums','Group 14: Reactivity towards water and halogen; allotropes of carbon; preparation, properties, and uses of carbon monoxide, carbon dioxide, silicon dioxide, silicones, silicates, zeolites','Group 15: Reactivity towards hydrogen, oxygen, and halogen; allotropes of phosphorous; preparation, properties, and uses of dinitrogen, ammonia, nitric acid, phosphine, phosphorus trichloride, phosphorus pentachloride; oxides of nitrogen and oxoacids of phosphorus','Group 16: Reactivity towards hydrogen, oxygen, and halogen; simple oxides; allotropes of sulfur; preparation/manufacture, properties, and uses of dioxygen, ozone, sulfur dioxide, sulfuric acid; oxoacids of sulfur','Group 17: Reactivity towards hydrogen, oxygen, and metals; preparation/manufacture, properties, and uses of chlorine, hydrogen chloride and interhalogen compounds; oxoacids of halogens, bleaching powder','Group 18: Chemical properties and uses; compounds of xenon with fluorine and oxygen']},
+{s:'chem',n:'D-Block Elements',w:'5%',t:['Oxidation states and their stability; standard electrode potentials','Interstitial compounds; alloys; catalytic properties; applications','Preparation, structure, and reactions of oxoanions of chromium and manganese']},
+{s:'chem',n:'F-Block Elements',w:'2%',t:['Lanthanoid and actinoid contractions','Oxidation states; general characteristics']},
+{s:'chem',n:'Coordination Compounds',w:'7%',t:['Werner\'s theory; Nomenclature of mononuclear coordination compounds','cis-trans and ionization isomerism','Hybridization and geometries (linear, tetrahedral, square planar and octahedral) of mononuclear coordination compounds','Bonding \u2014 VBT and CFT (octahedral and tetrahedral fields)','Magnetic properties (spin-only) and colour of 3d-series coordination compounds','Ligands and spectrochemical series; Stability; Importance and applications','Metal carbonyls']},
+{s:'chem',n:'Isolation of Metals',w:'2%',t:['Metal ores and their concentration','Extraction of crude metal from concentrated ores: thermodynamic (iron, copper, zinc) and electrochemical (aluminium) principles of metallurgy','Cyanide process (silver and gold); refining']},
+{s:'chem',n:'Principles of Qualitative Analysis',w:'3%',t:['Groups I to V: Ag\u207a, Hg\u00b2\u207a, Cu\u00b2\u207a, Pb\u00b2\u207a, Fe\u00b3\u207a, Cr\u00b3\u207a, Al\u00b3\u207a, Ca\u00b2\u207a, Ba\u00b2\u207a, Zn\u00b2\u207a, Mn\u00b2\u207a and Mg\u00b2\u207a','Nitrate, halides (excluding fluoride), carbonate and bicarbonate, sulphate and sulphide']},
+{s:'chem',n:'Environmental Chemistry',w:'3%',t:['Atmospheric pollution; water pollution; soil pollution; industrial waste','Strategies to control environmental pollution','Green chemistry']},
+{s:'chem',n:'Basic Principles of Organic Chemistry',w:'4%',t:['Hybridisation of carbon; \u03c3 and \u03c0-bonds; Shapes of simple organic molecules; aromaticity','Structural and geometrical isomerism','Stereoisomers and stereochemical relationship (enantiomers, diastereomers, meso) of compounds containing up to two asymmetric centres (R,S and E,Z configurations excluded)','Determination of empirical and molecular formulae of simple compounds by combustion method only','IUPAC nomenclature of organic molecules (hydrocarbons, including simple cyclic hydrocarbons and their mono-functional and bi-functional derivatives only)','Hydrogen bonding effects; Inductive, Resonance and Hyperconjugative effects','Acidity and basicity of organic compounds; Reactive intermediates produced during homolytic and heterolytic bond cleavage','Formation, structure and stability of carbocations, carbanions and free radicals']},
+{s:'chem',n:'Alkanes',w:'5%',t:['Homologous series; Physical properties (melting points, boiling points and density) and effect of branching','Conformations of ethane and butane (Newman projections only)','Preparation from alkyl halides and aliphatic carboxylic acids','Reactions: combustion, halogenation (including allylic and benzylic halogenation) and oxidation']},
+{s:'chem',n:'Alkenes and Alkynes',w:'5%',t:['Physical properties (boiling points, density and dipole moments)','Preparation by elimination reactions; Acid catalysed hydration (excluding the stereochemistry of addition and elimination)','Metal acetylides','Reactions of alkenes with KMnO\u2084 and ozone; Reduction of alkenes and alkynes','Electrophilic addition reactions of alkenes with X\u2082, HX, HOX (X=halogen); Effect of peroxide on addition reactions','Cyclic polymerization reaction of alkynes']},
+{s:'chem',n:'Benzene',w:'4%',t:['Structure of benzene','Electrophilic substitution reactions: halogenation, nitration, sulphonation, Friedel Crafts alkylation and acylation','Effect of directing groups (monosubstituted benzene) in these reactions']},
+{s:'chem',n:'Phenols',w:'2%',t:['Physical properties; Preparation','Electrophilic substitution reactions of phenol: halogenation, nitration, sulphonation','Reimer-Tiemann reaction, Kolbe reaction','Esterification; Etherification; Aspirin synthesis','Oxidation and reduction reactions of phenol']},
+{s:'chem',n:'Alkyl Halides',w:'4%',t:['Rearrangement reactions of alkyl carbocation','Grignard reactions','Nucleophilic substitution reactions and their stereochemical aspects']},
+{s:'chem',n:'Alcohols',w:'4%',t:['Physical properties','Reactions: esterification, dehydration (formation of alkenes and ethers)','Reactions with: sodium, phosphorus halides, ZnCl\u2082/concentrated HCl, thionyl chloride','Conversion of alcohols into aldehydes, ketones and carboxylic acids']},
+{s:'chem',n:'Ethers',w:'2%',t:['Preparation by Williamson\'s synthesis','C-O bond cleavage reactions']},
+{s:'chem',n:'Aldehydes and Ketones',w:'4%',t:['Preparation of aldehydes and ketones from acid chlorides and nitriles','Preparation of aldehydes from esters; benzaldehyde from toluene and benzene','Reactions: oxidation, reduction, oxime and hydrazone formation','Aldol condensation, Cannizzaro reaction; Haloform reaction','Nucleophilic addition reaction with RMgX, NaHSO\u2083, HCN, alcohol, amine']},
+{s:'chem',n:'Carboxylic Acids',w:'4%',t:['Physical properties','Preparation: from nitriles, Grignard reagents, hydrolysis of esters and amides','Preparation of benzoic acid from alkylbenzenes','Reactions: reduction, halogenation, formation of esters, acid chlorides and amides']},
+{s:'chem',n:'Amines',w:'3%',t:['Preparation from nitro compounds, nitriles and amides','Reactions: Hoffmann bromamide degradation, Gabriel phthalimide synthesis','Reaction with nitrous acid, Azo coupling reaction of diazonium salts of aromatic amines','Sandmeyer and related reactions of diazonium salts','Carbylamine reaction, Hinsberg test, Alkylation and acylation reactions']},
+{s:'chem',n:'Haloarenes',w:'2%',t:['Reactions: Fittig, Wurtz-Fittig','Nucleophilic aromatic substitution in haloarenes and substituted haloarenes (excluding benzyne mechanism and cine substitution)']},
+{s:'chem',n:'Biomolecules',w:'5%',t:['Carbohydrates: Classification; Mono- and di-saccharides (glucose and sucrose)','Oxidation; Reduction; Glycoside formation and hydrolysis of disaccharides (sucrose, maltose, lactose); Anomers','Proteins: Amino acids; Peptide linkage; Structure of peptides (primary and secondary)','Types of proteins (fibrous and globular)','Nucleic acids: Chemical composition and structure of DNA and RNA']},
+{s:'chem',n:'Polymers',w:'3%',t:['Types of polymerization (addition, condensation); Homo and copolymers','Natural rubber; Cellulose; Nylon; Teflon; Bakelite; PVC','Bio-degradable polymers; Applications of polymers']},
+{s:'chem',n:'Chemistry in Everyday Life',w:'2%',t:['Drug-target interaction; Therapeutic action and examples (excluding structures) of antacids, antihistamines, tranquilizers, analgesics, antimicrobials, and antifertility drugs','Artificial sweeteners (names only)','Soaps, detergents, and cleansing action']},
+{s:'chem',n:'Practical Organic Chemistry',w:'2%',t:['Detection of elements (N, S, halogens)','Detection and identification of the following functional groups: hydroxyl (alcoholic and phenolic), carbonyl (aldehyde and ketone), carboxyl, amino and nitro']},
+{s:'math',n:'Sets, Relations and Functions',w:'10%',t:['Sets and their representations, different kinds of sets (empty, finite and infinite), algebra of sets','Intersection, complement, difference and symmetric difference of sets and their algebraic properties','De-Morgan\'s laws on union, intersection, difference (for finite number of sets) and practical problems based on them','Cartesian product of finite sets, ordered pair, relations, domain and codomain of relations, equivalence relation','Function as a special case of relation, functions as mappings, domain, codomain, range of functions','Invertible functions, even and odd functions, into, onto and one-to-one functions','Special functions: polynomial, trigonometric, exponential, logarithmic, power, absolute value, greatest integer etc.','Sum, difference, product and composition of functions']},
+{s:'math',n:'Algebra',w:'15%',t:['Algebra of complex numbers, addition, multiplication, conjugation, polar representation','Properties of modulus and principal argument, triangle inequality, cube roots of unity, geometric interpretations','Statement of fundamental theorem of algebra','Quadratic equations with real coefficients, relations between roots and coefficients, formation of quadratic equations with given roots, symmetric functions of roots','Arithmetic and geometric progressions, arithmetic and geometric means','Sums of finite arithmetic and geometric progressions, infinite geometric series','Sum of the first n natural numbers, sums of squares and cubes of the first n natural numbers','Logarithms and their properties','Permutations and combinations','Binomial theorem for a positive integral index, properties of binomial coefficients']},
+{s:'math',n:'Matrices',w:'10%',t:['Matrices as a rectangular array of real numbers, equality of matrices','Addition, multiplication by a scalar and product of matrices, transpose of a matrix','Elementary row and column transformations','Determinant of a square matrix of order up to three','Adjoint of a matrix, inverse of a square matrix of order up to three','Properties of matrix operations, diagonal, symmetric and skew-symmetric matrices and their properties','Solutions of simultaneous linear equations in two or three variables']},
+{s:'math',n:'Probability and Statistics',w:'10%',t:['Random experiment, sample space, different types of events (impossible, simple, compound)','Addition and multiplication rules of probability, conditional probability, independence of events','Total probability, Bayes Theorem','Computation of probability of events using permutations and combinations','Measure of central tendency and dispersion, mean, median, mode','Mean deviation, standard deviation and variance of grouped and ungrouped data','Analysis of the frequency distribution with same mean but different variance','Random variable, mean and variance of the random variable']},
+{s:'math',n:'Trigonometry',w:'10%',t:['Trigonometric functions, their periodicity and graphs','Addition and subtraction formulae, formulae involving multiple and sub-multiple angles','General solution of trigonometric equations','Inverse trigonometric functions (principal value only) and their elementary properties']},
+{s:'math',n:'Analytical Geometry',w:'10%',t:['Two dimensions: Cartesian coordinates, distance between two points, section formulae, shift of origin','Equation of a straight line in various forms, angle between two lines, distance of a point from a line','Lines through the point of intersection of two given lines; equation of the bisector of the angle between two lines; concurrency of lines','Centroid, orthocentre, incentre and circumcentre of a triangle','Equation of a circle in various forms, equations of tangent, normal and chord','Parametric equations of a circle, intersection of a circle with a straight line or a circle','Equation of a circle through the points of intersection of two circles and those of a circle and a straight line','Equations of a parabola, ellipse and hyperbola in standard form, their foci, directrices and eccentricity','Parametric equations, equations of tangent and normal (for parabola, ellipse and hyperbola)','Locus problems','Three dimensions: Distance between two points, direction cosines and direction ratios','Equation of a straight line in space, skew lines, shortest distance between two lines','Equation of a plane, distance of a point from a plane','Angle between two lines, angle between two planes, angle between a line and the plane, coplanar lines']},
+{s:'math',n:'Differential Calculus',w:'15%',t:['Limit of a function at a real number, continuity of a function','Limit and continuity of the sum, difference, product and quotient of two functions','L\'Hospital rule of evaluation of limits of functions','Continuity of composite functions, intermediate value property of continuous functions','Derivative of a function, derivative of the sum, difference, product and quotient of two functions, chain rule','Derivatives of polynomial, rational, trigonometric, inverse trigonometric, exponential and logarithmic functions','Tangents and normals, increasing and decreasing functions','Derivatives of order two, maximum and minimum values of a function','Rolle\'s theorem and Lagrange\'s mean value theorem, geometric interpretation of the two theorems','Derivatives up to order two of implicit functions, geometric interpretation of derivatives']},
+{s:'math',n:'Integral Calculus',w:'10%',t:['Integration as the inverse process of differentiation, indefinite integrals of standard functions','Definite integrals as the limit of sums, definite integral and their properties','Fundamental theorem of integral calculus','Integration by parts, integration by the methods of substitution and partial fractions','Application of definite integrals to the determination of areas bounded by simple curves','Formation of ordinary differential equations','Solution of homogeneous differential equations of first order and first degree','Separation of variables method, linear first order differential equations']},
+{s:'math',n:'Vectors',w:'10%',t:['Addition of vectors, scalar multiplication','Dot and cross products','Scalar and vector triple products','Geometrical interpretations of dot product, cross product, and triple products']}
+];
+const TOTAL=SYL.length;
+const SI={'':'',strong:'\u2705',decent:'\uD83D\uDD35',weak:'\uD83D\uDD34',done:'\u2611'};
+const SC={phy:'var(--phy)',chem:'var(--chem)',math:'var(--math)'};
+let CKS={},TPS={},DUES={},syncCode=null,subj='all',filt='all',picTgt=null,defInst=null,saveTO=null,calMode='month',calOffset=0;
+
+/* PWA */
+function registerPWA(){
+  const mf={name:'JEE Advanced Tracker',short_name:'JEE Tracker',start_url:'.',display:'standalone',background_color:'#111214',theme_color:'#111214',icons:[{src:svgIcon(192),sizes:'192x192',type:'image/svg+xml'},{src:svgIcon(512),sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+  document.getElementById('pwa-manifest').href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/manifest+json'}));
+  if('serviceWorker' in navigator){
+    const sw=`const C='jee-v1';self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)||new Response('',{status:404})));});`;
+    navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+  }
+}
+function svgIcon(sz){return 'data:image/svg+xml;base64,'+btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#1d2025"/><text x="50" y="66" font-size="54" text-anchor="middle" fill="#959ba5" font-family="monospace" font-weight="bold">J</text></svg>`);}
+
+/* FIREBASE */
+// Replace FB with your Firebase config: console.firebase.google.com
+// New project -> Firestore (test mode) -> Register app -> copy apiKey & projectId
+const FB={apiKey: "AIzaSyCHAVIxHnyY0Or0FsGPub7jJU-OJBJ4vdI",
+  authDomain: "jee-tracker-56d39.firebaseapp.com",
+  projectId: "jee-tracker-56d39",
+  storageBucket: "jee-tracker-56d39.firebasestorage.app",
+  messagingSenderId: "989488610362",
+  appId: "1:989488610362:web:93fac3a6c7e665a52ec903",
+  measurementId: "G-1RB3HZ2GJY"};
+function fsUrl(c){return `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents/trackers/${encodeURIComponent(c)}?key=${FB.apiKey}`;}
+async function fsLoad(c){try{const r=await fetch(fsUrl(c));if(!r.ok)return null;const d=await r.json();if(!d.fields)return null;return{CKS:d.fields.CKS?JSON.parse(d.fields.CKS.stringValue):{},TPS:d.fields.TPS?JSON.parse(d.fields.TPS.stringValue):{},DUES:d.fields.DUES?JSON.parse(d.fields.DUES.stringValue):{}};}catch{return null;}}
+async function fsSave(c){try{setSB('saving','\u27f3 Saving\u2026');const b={fields:{CKS:{stringValue:JSON.stringify(CKS)},TPS:{stringValue:JSON.stringify(TPS)},DUES:{stringValue:JSON.stringify(DUES)}}};const r=await fetch(fsUrl(c)+'&updateMask.fieldPaths=CKS&updateMask.fieldPaths=TPS&updateMask.fieldPaths=DUES',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(r.ok){setSB('saved','\u2713 Saved');setTimeout(()=>setSB('',''),2000);}else setSB('err','\u2717 Failed');}catch{setSB('err','\u2717 Offline');}}
+function setSB(cls,txt){const el=document.getElementById('sync-bar');el.className='sync-bar'+(cls?' '+cls:'');el.textContent=txt;}
+
+/* PERSIST */
+function sk(){return syncCode?'jee3_'+syncCode:'jee3_offline';}
+function save(){localStorage.setItem(sk(),JSON.stringify({CKS,TPS,DUES}));if(syncCode){clearTimeout(saveTO);saveTO=setTimeout(()=>fsSave(syncCode),1500);}}
+function load(){const r=localStorage.getItem(sk());if(r){try{const p=JSON.parse(r);CKS=p.CKS||{};TPS=p.TPS||{};DUES=p.DUES||{};}catch{CKS={};TPS={};DUES={};}}else{CKS={};TPS={};DUES={};}}
+
+const isChk=ci=>!!CKS[ci];
+const getTPS=(ci,ti)=>TPS[ci+'-'+ti]||'';
+function toggleCh(ci){CKS[ci]=!CKS[ci];if(!CKS[ci])delete CKS[ci];save();}
+
+/* RENDER */
+function passes(ci){
+  const ch=SYL[ci];
+  if(subj!=='all'&&ch.s!==subj)return false;
+  if(filt==='all')return true;
+  if(filt==='checked')return isChk(ci);
+  if(filt==='unchecked')return!isChk(ci);
+  return ch.t.some((_,ti)=>{const s=getTPS(ci,ti);return s===filt||(filt==='untouched'&&s==='');});
+}
+
+function render(){
+  const area=document.getElementById('scroller');area.innerHTML='';
+  let n=0;
+  SYL.forEach((ch,ci)=>{if(!passes(ci))return;area.appendChild(buildCard(ch,ci));n++;});
+  if(!n)area.innerHTML='<div class="empty">No chapters match this filter.</div>';
+  updateStats();
+}
+
+function buildCard(ch,ci){
+  const ck=isChk(ci);
+  const done=ch.t.filter((_,ti)=>getTPS(ci,ti)!=='').length;
+  const pct=ch.t.length?Math.round(done/ch.t.length*100):0;
+  const el=document.createElement('div');
+  el.className='ch'+(ck?' done-ch':'');
+  el.dataset.ci=ci;el.dataset.ck=ck?'1':'0';
+  el.innerHTML=`<div class="ch-hdr"><div class="ch-box">${ck?'\u2713':''}</div><div class="ch-dot" style="background:${SC[ch.s]}"></div><div class="ch-name">${ch.n}</div><div class="ch-meta">${ch.w?`<div class="ch-wt">${ch.w}</div>`:''}<div class="mini-bar" title="${done}/${ch.t.length} subtopics tracked"><div class="mini-fill${done===ch.t.length&&ch.t.length>0?' full':''}" style="width:${pct}%"></div></div><div class="ch-chev">\u25bc</div></div></div><div class="sub-list"><div class="sub-items">${ch.t.map((txt,ti)=>{const s=getTPS(ci,ti);const due=DUES[ci+'-'+ti]||'';const dueBadge=due?`<div class="sub-due ${dueCls(due)}">\u{1F4C5} ${fmtDue(due)}</div>`:'';return`<div class="sub" data-ci="${ci}" data-ti="${ti}" data-s="${s}"><div class="sub-btn">${SI[s]||''}</div><div class="sub-txt">${txt}${dueBadge}</div></div>`;}).join('')}</div></div>`;
+  el.querySelector('.ch-box').addEventListener('click',e=>{e.stopPropagation();toggleCh(ci);const ck2=isChk(ci);el.dataset.ck=ck2?'1':'0';el.querySelector('.ch-box').textContent=ck2?'\u2713':'';el.classList.toggle('done-ch',ck2);updateStats();});
+  el.querySelector('.ch-hdr').addEventListener('click',e=>{if(e.target.classList.contains('ch-box'))return;el.classList.toggle('open');});
+  el.querySelectorAll('.sub').forEach(st=>{st.addEventListener('click',e=>{e.stopPropagation();picTgt={ci:+st.dataset.ci,ti:+st.dataset.ti};document.getElementById('p-name').textContent=SYL[+st.dataset.ci].t[+st.dataset.ti];const existDue=DUES[picTgt.ci+'-'+picTgt.ti]||'';document.getElementById('p-due-input').value=existDue;document.getElementById('picker-ov').classList.add('on');});});
+  return el;
+}
+
+/* refreshSub defined above */
+
+function g(id,val){const el=document.getElementById(id);if(el){if(id.startsWith('pf-'))el.style.width=val;else el.textContent=val;}}
+
+function updateStats(){
+  const c={phy:{t:0,d:0},chem:{t:0,d:0},math:{t:0,d:0}};
+  SYL.forEach((ch,ci)=>{c[ch.s].t++;if(isChk(ci))c[ch.s].d++;});
+  const all={t:TOTAL,d:c.phy.d+c.chem.d+c.math.d};
+  const pct=Math.round(all.d/all.t*100);
+  const lbl=all.d+'/'+all.t+' chapters';
+  g('pf-p',pct+'%');g('pp-p',pct+'%');g('pl-p',lbl);
+  g('pf-ls',pct+'%');g('pp-ls',pct+'%');g('pl-ls',lbl);
+  ['phy','chem','math'].forEach(s=>{g('ps-'+s,c[s].t);g('ps-'+s+'-s',c[s].d+' done');});
+  g('ps-all',all.t);g('ps-all-s',all.d+' done');
+  g('ss-all',all.d+'/'+all.t);
+  ['phy','chem','math'].forEach(s=>{g('ss-'+s,c[s].d+'/'+c[s].t);});
+  ['phy','chem','math'].forEach(s=>{const v=c[s].d+'/'+c[s].t;g('tc-p-'+s,v);g('tc-ls-'+s,v);});
+}
+
+/* PICKER */
+document.querySelectorAll('.p-opt').forEach(opt=>{opt.addEventListener('click',()=>{if(!picTgt)return;const{ci,ti}=picTgt;const pick=opt.dataset.pick;const k=ci+'-'+ti;if(pick==='')delete TPS[k];else TPS[k]=pick;save();refreshSub(ci,ti);document.getElementById('picker-ov').classList.remove('on');picTgt=null;});});
+document.getElementById('picker-ov').addEventListener('click',function(e){if(e.target===this){this.classList.remove('on');picTgt=null;}});
+
+
+/* ── DUE DATE HELPERS ── */
+function dueCls(ds){if(!ds)return'';const d=new Date(ds),n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);const diff=(d-n)/864e5;if(diff<0)return'overdue';if(diff<=7)return'soon';return'ok';}
+function fmtDue(ds){if(!ds)return'';const d=new Date(ds),n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);const diff=Math.round((d-n)/864e5);const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const base=mo[d.getMonth()]+' '+d.getDate();if(diff===0)return base+' (today)';if(diff===1)return base+' (tomorrow)';if(diff===-1)return base+' (yesterday)';if(diff<0)return base+' ('+Math.abs(diff)+'d overdue)';if(diff<=7)return base+' ('+diff+'d left)';return base;}
+
+/* ── DUE DATE PICKER EVENTS ── */
+document.getElementById('p-due-input').addEventListener('change',function(){if(!picTgt)return;const k=picTgt.ci+'-'+picTgt.ti;if(this.value)DUES[k]=this.value;else delete DUES[k];save();refreshSub(picTgt.ci,picTgt.ti);if(subj==='cal')renderCal();});
+document.getElementById('p-due-clr').addEventListener('click',function(){if(!picTgt)return;const k=picTgt.ci+'-'+picTgt.ti;delete DUES[k];document.getElementById('p-due-input').value='';save();refreshSub(picTgt.ci,picTgt.ti);if(subj==='cal')renderCal();});
+
+function allDuedTopics(){
+  // returns [{ci,ti,due,ch,topic,subj}] sorted by date
+  const items=[];
+  SYL.forEach((ch,ci)=>{ch.t.forEach((topic,ti)=>{const due=DUES[ci+'-'+ti];if(due)items.push({ci,ti,due,ch:ch.n,topic,subj:ch.s,status:getTPS(ci,ti)||''});});});
+  items.sort((a,b)=>a.due<b.due?-1:a.due>b.due?1:0);
+  return items;
+}
+
+function renderCal(){
+  const scroll=document.getElementById('cal-scroll');
+  const title=document.getElementById('cal-title');
+  const today=new Date();today.setHours(0,0,0,0);
+
+  if(calMode==='month'){
+    const ref=new Date(today.getFullYear(),today.getMonth()+calOffset,1);
+    title.textContent=MO[ref.getMonth()].toUpperCase()+' '+ref.getFullYear();
+    // build month grid
+    const firstDay=ref.getDay();
+    const daysInMonth=new Date(ref.getFullYear(),ref.getMonth()+1,0).getDate();
+    const allDue=allDuedTopics();
+
+    let html='<div class="cal-month-grid"><div class="cal-dow-row">';
+    DOW.forEach(d=>html+='<div class="cal-dow">'+d+'</div>');
+    html+='</div>';
+
+    // pad start
+    const totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
+    let cells=[];
+    for(let i=0;i<firstDay;i++)cells.push({day:null});
+    for(let d=1;d<=daysInMonth;d++)cells.push({day:d});
+    while(cells.length<totalCells)cells.push({day:null});
+
+    for(let w=0;w<cells.length/7;w++){
+      html+='<div class="cal-week">';
+      for(let d=0;d<7;d++){
+        const cell=cells[w*7+d];
+        if(!cell.day){html+='<div class="cal-day other-month"><div class="cal-day-num"></div></div>';continue;}
+        const dateStr=ref.getFullYear()+'-'+String(ref.getMonth()+1).padStart(2,'0')+'-'+String(cell.day).padStart(2,'0');
+        const cellDate=new Date(dateStr);cellDate.setHours(0,0,0,0);
+        const isToday=cellDate.getTime()===today.getTime();
+        const items=allDue.filter(x=>x.due===dateStr);
+        html+='<div class="cal-day'+(isToday?' today':'')+'">'
+          +'<div class="cal-day-num">'+cell.day+'</div>'
+          +items.slice(0,3).map(x=>'<div class="cal-chip '+x.subj+'">'+x.topic.slice(0,18)+'</div>').join('')
+          +(items.length>3?'<div class="cal-chip" style="color:var(--muted)">+'+( items.length-3)+' more</div>':'')
+          +'</div>';
+      }
+      html+='</div>';
+    }
+    html+='</div>';
+    scroll.innerHTML=html;
+
+  } else {
+    // WEEK or DAY list view
+    let start=new Date(today);
+    start.setDate(today.getDate()+(calMode==='week'?calOffset*7:calOffset));
+    const days=calMode==='week'?7:1;
+    title.textContent=calMode==='week'?'WEEK OF '+DOW[start.getDay()]+', '+MO[start.getMonth()].slice(0,3)+' '+start.getDate()+(calOffset===0?' (THIS WEEK)':'')
+                                       :DOW[start.getDay()].toUpperCase()+', '+MO[start.getMonth()].slice(0,3)+' '+start.getDate()+', '+start.getFullYear()+(calOffset===0?' — TODAY':'');
+
+    const allDue=allDuedTopics();
+    let html='';
+    for(let i=0;i<days;i++){
+      const day=new Date(start);day.setDate(start.getDate()+i);day.setHours(0,0,0,0);
+      const ds=day.getFullYear()+'-'+String(day.getMonth()+1).padStart(2,'0')+'-'+String(day.getDate()).padStart(2,'0');
+      const items=allDue.filter(x=>x.due===ds);
+      const isT=day.getTime()===today.getTime();
+      html+='<div class="cal-list-day"><div class="cal-list-date'+(isT?' today-hdr':'')+'">'+DOW[day.getDay()]+', '+MO[day.getMonth()].slice(0,3)+' '+day.getDate()+(isT?' — TODAY':'')+'</div>';
+      if(items.length===0)html+='<div style="font-size:12px;color:var(--muted);padding:8px 0;">No topics due</div>';
+      else items.forEach(x=>{
+        const ck=isChk(x.ci)?' (chapter done)':'';
+        html+='<div class="cal-item"><div class="cal-item-dot" style="background:var(--'+x.subj+')"></div><div class="cal-item-body"><div class="cal-item-ch">'+x.ch+'</div><div class="cal-item-topic">'+x.topic+'</div><div class="cal-item-status">'+( x.status?SI[x.status]+' '+x.status:'Untouched')+ck+'</div></div></div>';
+      });
+      html+='</div>';
+    }
+    if(!html.includes('cal-item'))html='<div class="cal-empty">No due dates set yet.<br/>Open any subtopic and assign a due date.</div>';
+    scroll.innerHTML=html;
+  }
+}
+
+/* Cal nav */
+document.getElementById('cal-prev').addEventListener('click',()=>{calOffset--;renderCal();});
+document.getElementById('cal-next').addEventListener('click',()=>{calOffset++;renderCal();});
+document.querySelectorAll('.cal-mode-btn').forEach(btn=>{btn.addEventListener('click',()=>{calMode=btn.dataset.mode;calOffset=0;document.querySelectorAll('.cal-mode-btn').forEach(b=>b.classList.toggle('active',b===btn));renderCal();});});
+
+/* TABS */
+function setSubj(v){subj=v;document.querySelectorAll('[data-subj]').forEach(t=>t.classList.toggle('active',t.dataset.subj===v));const isC=v==='cal';document.getElementById('cal-view').classList.toggle('on',isC);['scroller','sync-bar'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isC?'none':'';});const fb=document.getElementById('filters');if(fb)fb.style.display=isC?'none':'';document.querySelectorAll('.legend').forEach(l=>l.style.display=isC?'none':'');document.querySelectorAll('.stats.p-only').forEach(el=>el.style.display=isC?'none':'');if(isC)renderCal();else render();}
+document.getElementById('tabs-p').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)setSubj(t.dataset.subj);});
+document.getElementById('tabs-ls').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)setSubj(t.dataset.subj);});
+
+/* FILTERS */
+document.getElementById('filters').addEventListener('click',e=>{const c=e.target.closest('.fc');if(!c)return;filt=c.dataset.f;document.querySelectorAll('.fc').forEach(x=>x.classList.toggle('active',x===c));render();});
+
+/* SYNC */
+function setDots(code){['sd-p','sd-ls'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',!!code);});['sl-p','sl-ls'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=code?code.slice(0,6).toUpperCase():'SYNC';});}
+function startApp(){document.getElementById('sync-screen').style.display='none';document.getElementById('app').classList.add('on');load();render();}
+document.getElementById('sc-btn').addEventListener('click',async()=>{const code=document.getElementById('si').value.trim();if(!code){alert('Please enter a sync code.');return;}syncCode=code;localStorage.setItem('jee_sync_code',code);const btn=document.getElementById('sc-btn');btn.textContent='Connecting\u2026';btn.disabled=true;const rem=await fsLoad(code);if(rem){CKS=rem.CKS||{};TPS=rem.TPS||{};DUES=rem.DUES||{};localStorage.setItem(sk(),JSON.stringify({CKS,TPS,DUES}));setSB('saved','\u2713 Synced');}setDots(code);startApp();});
+document.getElementById('s-skip').addEventListener('click',()=>{syncCode=null;startApp();});
+document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('sc-btn').click();});
+['p-sync-btn','sb-sync-btn'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.addEventListener('click',()=>{document.getElementById('sync-screen').style.display='flex';document.getElementById('app').classList.remove('on');if(syncCode)document.getElementById('si').value=syncCode;const btn=document.getElementById('sc-btn');btn.textContent='Connect & Start \u2192';btn.disabled=false;});});
+
+/* INSTALL */
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();defInst=e;document.getElementById('inst-bar').classList.add('on');});
+window.addEventListener('appinstalled',()=>{document.getElementById('inst-bar').classList.remove('on');defInst=null;});
+document.getElementById('inst-btn').addEventListener('click',async()=>{if(defInst){defInst.prompt();const{outcome}=await defInst.userChoice;if(outcome==='accepted'){document.getElementById('inst-bar').classList.remove('on');defInst=null;}}else{alert('To install on iOS Safari: tap the Share button (\u2b06) then "Add to Home Screen".\nOn Android Chrome: tap the 3-dot menu \u22ee then "Add to Home Screen" or "Install app".');}});
+document.getElementById('inst-x').addEventListener('click',()=>document.getElementById('inst-bar').classList.remove('on'));
+
+/* INIT */
+window.addEventListener('DOMContentLoaded',()=>{
+  registerPWA();
+  const saved=localStorage.getItem('jee_sync_code');
+  if(saved){
+    syncCode=saved;
+    setDots(saved);
+    // auto-start without showing sync screen; cloud sync happens silently
+    startApp();
+    // try syncing from cloud in background
+    fsLoad(saved).then(rem=>{
+      if(rem){
+        // only overwrite if cloud has data and local is empty
+        const localRaw=localStorage.getItem(sk());
+        if(!localRaw){CKS=rem.CKS||{};TPS=rem.TPS||{};DUES=rem.DUES||{};localStorage.setItem(sk(),JSON.stringify({CKS,TPS,DUES}));render();}
+        else{
+          // merge DUES from cloud if missing locally
+          const lp=JSON.parse(localRaw);
+          if(!lp.DUES&&rem.DUES){DUES=rem.DUES;save();}
+        }
+      }
+    }).catch(()=>{});
+  } else {
+    document.getElementById('sync-screen').style.display='flex';
+  }
+});
+</script>
+</body>
+</html>
